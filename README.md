@@ -1,6 +1,8 @@
 # FastNoiseCompute
 This is a library based on [FastNoise](https://github.com/Auburns/FastNoise) by Auburns implemented in Unity Compute shaders. I'm slowly adding the different noise types.
 
+This should also support other compute shader platforms, as long as they use HLSL.
+
 ## API Reference
 
 Note, this library port is a work in progress, this API reference will evolve yet.
@@ -13,9 +15,9 @@ Note, this library port is a work in progress, this API reference will evolve ye
 
 ### Noise types
 - `FN_NOISE_VALUE`
-- `FN_NOISE_VALUE_FRACTAL` - Not implemented yet
+- `FN_NOISE_VALUE_FRACTAL`
 - `FN_NOISE_PERLIN`
-- `FN_NOISE_PERLIN_FRACTAL` - Not implemented yet
+- `FN_NOISE_PERLIN_FRACTAL`
 - `FN_NOISE_SIMPLEX`
 - `FN_NOISE_SIMPLEX_FRACTAL` - Not implemented yet
 - `FN_NOISE_CELLULAR` - Not implemented yet
@@ -43,18 +45,44 @@ Note, this library port is a work in progress, this API reference will evolve ye
 - `void FNSetFrequency(FN_DECIMAL frequency)` - Set the noise frequency (default: `0.001`).
 - `FN_DECIMAL FNGetFrequency()` - Get the noise frequency
 
-### Noise Functions
-- `FN_DECIMAL FNGetValue(FN_DECIMAL3 pos)`
-- `FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
-- `FN_DECIMAL FNGetValue(FN_DECIMAL2 pos)`
-- `FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y)`
-- `FN_DECIMAL FNGetPerlin(FN_DECIMAL3 pos)`
-- `FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
-- `FN_DECIMAL FNGetPerlin(FN_DECIMAL2 pos)`
-- `FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y)`
-- `FN_DECIMAL FNGetSimplex(FN_DECIMAL3 pos)`
-- `FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
-- `FN_DECIMAL FNGetSimplex(FN_DECIMAL2 pos)`
-- `FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y)`
+### General noise functions
 - `FN_DECIMAL FNGetNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)` - Gets 3d noise from the currently selected generator (See `FNSetNoiseType`)
 - `FN_DECIMAL FNGetNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)` - Gets 2d noise from the currently selected generator (See `FNSetNoiseType`)
+
+### White Noise Functions
+
+- `FN_DECIMAL FNGetWhiteNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z, FN_DECIMAL w)`
+- `FN_DECIMAL FNGetWhiteNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
+- `FN_DECIMAL FNGetWhiteNoise(FN_DECIMAL x, FN_DECIMAL y)`
+- `FN_DECIMAL FNGetWhiteNoiseInt(int x, int y, int z, int w)`
+- `FN_DECIMAL FNGetWhiteNoiseInt(int x, int y, int z)`
+- `FN_DECIMAL FNGetWhiteNoiseInt(int x, int y)`
+
+### Value Noise Functions
+
+- `FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
+- `FN_DECIMAL FNGetValue(FN_DECIMAL3 pos)`
+- `FN_DECIMAL FNGetValueFractal(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetValueFractal(FN_DECIMAL3 pos)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y)`
+- `FN_DECIMAL FNGetValue(FN_DECIMAL2 pos)`
+- `FN_DECIMAL FNGetValueFractal(FN_DECIMAL x, FN_DECIMAL y)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetValueFractal(FN_DECIMAL2 pos)` - Uses the current fractal type.
+
+### Perlin Noise Functions
+
+- `FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
+- `FN_DECIMAL FNGetPerlin(FN_DECIMAL3 pos)`
+- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL3 pos)`
+- `FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y)`
+- `FN_DECIMAL FNGetPerlin(FN_DECIMAL2 pos)`
+- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL x, FN_DECIMAL y)`
+- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL2 pos)`
+
+### Simplex Noise Functions
+
+- `FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
+- `FN_DECIMAL FNGetSimplex(FN_DECIMAL3 pos)`
+- `FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y)`
+- `FN_DECIMAL FNGetSimplex(FN_DECIMAL2 pos)`

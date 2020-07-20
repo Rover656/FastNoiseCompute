@@ -54,21 +54,28 @@
 
 // Noise Types (If it is commented, it isn't implemented. I'll add more if they are needed by someone utilizing the library)
 #define FN_NOISE_VALUE 0
-//#define FN_NOISE_VALUE_FRACTAL 1
+#define FN_NOISE_VALUE_FRACTAL 1
 #define FN_NOISE_PERLIN 2
-//#define FN_NOISE_PERLIN_FRACTAL 3
+#define FN_NOISE_PERLIN_FRACTAL 3
 #define FN_NOISE_SIMPLEX 4
 //#define FN_NOISE_SIMPLEX_FRACTAL 5
 //#define FN_NOISE_CELLULAR 6
-//#define FN_NOISE_WHITENOISE 7
+#define FN_NOISE_WHITENOISE 7
 //#define FN_NOISE_CUBIC 8
 //#define FN_NOUSE_CUBIC_FRACTAL 9
 
 // Configuration variables
 static int _fn_seed = 1337;
-static int _fn_interp = FN_INTERP_QUINTIC;
 static FN_DECIMAL _fn_frequency = (FN_DECIMAL)0.01;
+static int _fn_interp = FN_INTERP_QUINTIC;
 static int _fn_noiseType = FN_NOISE_SIMPLEX;
+
+static int _fn_octaves = 3;
+static FN_DECIMAL _fn_lacunarity = (FN_DECIMAL) 2.0;
+static FN_DECIMAL _fn_gain = (FN_DECIMAL) 0.5;
+static int _fn_fractalType = FN_FRACTAL_FBM;
+
+static FN_DECIMAL _fn_fractalBounding;
 
 static const FN_DECIMAL2 FN_GRAD_2D[] = {
     FN_DECIMAL2(-1,-1), FN_DECIMAL2( 1,-1), FN_DECIMAL2(-1, 1), FN_DECIMAL2( 1, 1),
@@ -95,6 +102,16 @@ FN_DECIMAL _FNInterpQuinticFunc(FN_DECIMAL t) { return t * t * t * (t * (t * 6 -
 FN_DECIMAL _FNCubicLerp(FN_DECIMAL a, FN_DECIMAL b, FN_DECIMAL c, FN_DECIMAL d, FN_DECIMAL t) {
     FN_DECIMAL p = (d - c) - (a - b);
     return t * t * t * p + t * t * ((a - b) - p) + t * (c - a) + b;
+}
+
+void _FNCalculateFractalBounding() {
+    FN_DECIMAL amp = _fn_gain;
+    FN_DECIMAL ampFractal = 1;
+    for (int i = 1; i < _fn_octaves; i++) {
+        ampFractal += amp;
+        amp *= _fn_gain;
+    }
+    _fn_fractalBounding = 1 / ampFractal;
 }
 
 // Hashing
@@ -155,7 +172,7 @@ FN_DECIMAL _FNValCoord3D(int seed, int x, int y, int z) {
     return (n * n * n * 60493) / (FN_DECIMAL)2147483648.0;
 }
 
-FN_DECIMAL _FNVlCoord4D(int seed, int x, int y, int z, int w) {
+FN_DECIMAL _FNValCoord4D(int seed, int x, int y, int z, int w) {
     int n = seed;
     n ^= X_PRIME * x;
     n ^= Y_PRIME * y;
@@ -203,8 +220,7 @@ FN_DECIMAL _FNGradCoord4D(int seed, int x, int y, int z, int w, FN_DECIMAL xd, F
 
     hash &= 31;
     FN_DECIMAL a = yd, b = zd, c = wd;            // X,Y,Z
-    switch (hash >> 3)
-    {          // OR, DEPENDING ON HIGH ORDER 2 BITS:
+    switch (hash >> 3) { // OR, DEPENDING ON HIGH ORDER 2 BITS:
         case 1: a = wd; b = xd; c = yd; break;     // W,X,Y
         case 2: a = zd; b = wd; c = xd; break;     // Z,W,X
         case 3: a = yd; b = zd; c = wd; break;     // Y,Z,W
@@ -212,6 +228,51 @@ FN_DECIMAL _FNGradCoord4D(int seed, int x, int y, int z, int w, FN_DECIMAL xd, F
     return ((hash & 4) == 0 ? -a : a) + ((hash & 2) == 0 ? -b : b) + ((hash & 1) == 0 ? -c : c);
 }
 
+// White noise
+int _FNFloatCast2Int(FN_DECIMAL f) {
+    uint low;
+    uint high;
+    asuint(f, low, high);
+    return (int) (low ^ high);
+}
+
+FN_DECIMAL FNGetWhiteNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z, FN_DECIMAL w) {
+    int xi = _FNFloatCast2Int(x);
+    int yi = _FNFloatCast2Int(y);
+    int zi = _FNFloatCast2Int(z);
+    int wi = _FNFloatCast2Int(w);
+
+    return _FNValCoord4D(_fn_seed, xi, yi, zi, wi);
+}
+
+FN_DECIMAL FNGetWhiteNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int xi = _FNFloatCast2Int(x);
+    int yi = _FNFloatCast2Int(y);
+    int zi = _FNFloatCast2Int(z);
+
+    return _FNValCoord3D(_fn_seed, xi, yi, zi);
+}
+
+FN_DECIMAL FNGetWhiteNoise(FN_DECIMAL x, FN_DECIMAL y) {
+    int xi = _FNFloatCast2Int(x);
+    int yi = _FNFloatCast2Int(y);
+
+    return _FNValCoord2D(_fn_seed, xi, yi);
+}
+
+FN_DECIMAL FNGetWhiteNoiseInt(int x, int y, int z, int w) {
+    return _FNValCoord4D(_fn_seed, x, y, z, w);
+}
+
+FN_DECIMAL FNGetWhiteNoiseInt(int x, int y, int z) {
+    return _FNValCoord3D(_fn_seed, x, y, z);
+}
+
+FN_DECIMAL FNGetWhiteNoiseInt(int x, int y) {
+    return _FNValCoord2D(_fn_seed, x, y);
+}
+
+// Value noise
 FN_DECIMAL _FNSingleValue(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     int x0 = _FNFastFloor(x);
     int y0 = _FNFastFloor(y);
@@ -221,8 +282,7 @@ FN_DECIMAL _FNSingleValue(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     int z1 = z0 + 1;
 
     FN_DECIMAL xs, ys, zs;
-    switch (_fn_interp)
-    {
+    switch (_fn_interp) {
         default:
         case FN_INTERP_LINEAR:
             xs = x - x0;
@@ -252,12 +312,84 @@ FN_DECIMAL _FNSingleValue(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     return _FNLerp(yf0, yf1, zs);
 }
 
+FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    return _FNSingleValue(_fn_seed, x * _fn_frequency, y * _fn_frequency, z * _fn_frequency);
+}
+
 FN_DECIMAL FNGetValue(FN_DECIMAL3 pos) {
     return _FNSingleValue(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency, pos.z * _fn_frequency);
 }
 
-FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
-    return _FNSingleValue(_fn_seed, x * _fn_frequency, y * _fn_frequency, z * _fn_frequency);
+FN_DECIMAL _FNSingleValueFractalFBM(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = _FNSingleValue(seed, x, y, z);
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        z *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += _FNSingleValue(++seed, x, y, z) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSingleValueFractalBillow(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = abs(_FNSingleValue(seed, x, y, z)) * 2 - 1;
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        z *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += (abs(_FNSingleValue(++seed, x, y, z)) * 2 - 1) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSingleValueFractalRigidMulti(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = 1 - abs(_FNSingleValue(seed, x, y, z));
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        z *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum -= (1 - abs(_FNSingleValue(++seed, x, y, z))) * amp;
+    }
+
+    return sum;
+}
+
+FN_DECIMAL FNGetValueFractal(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    x *= _fn_frequency;
+    y *= _fn_frequency;
+    z *= _fn_frequency;
+    
+    switch (_fn_fractalType) {
+        case FN_FRACTAL_FBM:
+            return _FNSingleValueFractalFBM(x, y, z);
+        case FN_FRACTAL_BILLOW:
+            return _FNSingleValueFractalBillow(x, y, z);
+        case FN_FRACTAL_RIGIDMULTI:
+            return _FNSingleValueFractalRigidMulti(x, y, z);
+        default:
+            return 0;
+    }
+}
+
+FN_DECIMAL FNGetValueFractal(FN_DECIMAL3 pos) {
+    return FNGetValueFractal(pos.x, pos.y, pos.z);
 }
 
 FN_DECIMAL _FNSingleValue(int seed, FN_DECIMAL x, FN_DECIMAL y) {
@@ -267,8 +399,7 @@ FN_DECIMAL _FNSingleValue(int seed, FN_DECIMAL x, FN_DECIMAL y) {
     int y1 = y0 + 1;
 
     FN_DECIMAL xs, ys;
-    switch (_fn_interp)
-    {
+    switch (_fn_interp) {
         default:
         case FN_INTERP_LINEAR:
             xs = x - x0;
@@ -290,14 +421,85 @@ FN_DECIMAL _FNSingleValue(int seed, FN_DECIMAL x, FN_DECIMAL y) {
     return _FNLerp(xf0, xf1, ys);
 }
 
-FN_DECIMAL FNGetValue(FN_DECIMAL2 pos) {
-    return _FNSingleValue(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency);
-}
-
 FN_DECIMAL FNGetValue(FN_DECIMAL x, FN_DECIMAL y) {
     return _FNSingleValue(_fn_seed, x * _fn_frequency, y * _fn_frequency);
 }
 
+FN_DECIMAL FNGetValue(FN_DECIMAL2 pos) {
+    return _FNSingleValue(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency);
+}
+
+FN_DECIMAL _FNSingleValueFractalFBM(FN_DECIMAL x, FN_DECIMAL y) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = _FNSingleValue(seed, x, y);
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++)
+    {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += _FNSingleValue(++seed, x, y) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSingleValueFractalBillow(FN_DECIMAL x, FN_DECIMAL y) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = abs(_FNSingleValue(seed, x, y)) * 2 - 1;
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++)
+    {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        amp *= _fn_gain;
+        sum += (abs(_FNSingleValue(++seed, x, y)) * 2 - 1) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSingleValueFractalRigidMulti(FN_DECIMAL x, FN_DECIMAL y) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = 1 - abs(_FNSingleValue(seed, x, y));
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++)
+    {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum -= (1 - abs(_FNSingleValue(++seed, x, y))) * amp;
+    }
+
+    return sum;
+}
+
+FN_DECIMAL FNGetValueFractal(FN_DECIMAL x, FN_DECIMAL y) {
+    x *= _fn_frequency;
+    y *= _fn_frequency;
+    
+    switch (_fn_fractalType) {
+        case FN_FRACTAL_FBM:
+            return _FNSingleValueFractalFBM(x, y);
+        case FN_FRACTAL_BILLOW:
+            return _FNSingleValueFractalBillow(x, y);
+        case FN_FRACTAL_RIGIDMULTI:
+            return _FNSingleValueFractalRigidMulti(x, y);
+        default:
+            return 0;
+    }
+}
+
+FN_DECIMAL FNGetValueFractal(FN_DECIMAL2 pos) {
+    return FNGetValueFractal(pos.x, pos.y);
+}
+
+// Perlin noise
 FN_DECIMAL _FNSinglePerlin(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     int x0 = _FNFastFloor(x);
     int y0 = _FNFastFloor(y);
@@ -345,12 +547,84 @@ FN_DECIMAL _FNSinglePerlin(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     return _FNLerp(yf0, yf1, zs);
 }
 
+FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    return _FNSinglePerlin(_fn_seed, x * _fn_frequency, y * _fn_frequency, z * _fn_frequency);
+}
+
 FN_DECIMAL FNGetPerlin(FN_DECIMAL3 pos) {
     return _FNSinglePerlin(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency, pos.z * _fn_frequency);
 }
 
-FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
-    return _FNSinglePerlin(_fn_seed, x * _fn_frequency, y * _fn_frequency, z * _fn_frequency);
+FN_DECIMAL _FNSinglePerlinFractalFBM(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = _FNSinglePerlin(seed, x, y, z);
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        z *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += _FNSinglePerlin(++seed, x, y, z) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSinglePerlinFractalBillow(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = abs(_FNSinglePerlin(seed, x, y, z)) * 2 - 1;
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        z *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += (abs(_FNSinglePerlin(++seed, x, y, z)) * 2 - 1) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSinglePerlinFractalRigidMulti(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = 1 - abs(_FNSinglePerlin(seed, x, y, z));
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+        z *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum -= (1 - abs(_FNSinglePerlin(++seed, x, y, z))) * amp;
+    }
+
+    return sum;
+}
+
+FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
+    x *= _fn_frequency;
+    y *= _fn_frequency;
+    z *= _fn_frequency;
+    
+    switch (_fn_fractalType) {
+        case FN_FRACTAL_FBM:
+            return _FNSinglePerlinFractalFBM(x, y, z);
+        case FN_FRACTAL_BILLOW:
+            return _FNSinglePerlinFractalBillow(x, y, z);
+        case FN_FRACTAL_RIGIDMULTI:
+            return _FNSinglePerlinFractalRigidMulti(x, y, z);
+        default:
+            return 0;
+    }
+}
+
+FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL3 pos) {
+    return FNGetPerlinFractal(pos.x, pos.y, pos.z);
 }
 
 FN_DECIMAL _FNSinglePerlin(int seed, FN_DECIMAL x, FN_DECIMAL y) {
@@ -360,8 +634,7 @@ FN_DECIMAL _FNSinglePerlin(int seed, FN_DECIMAL x, FN_DECIMAL y) {
     int y1 = y0 + 1;
 
     FN_DECIMAL xs, ys;
-    switch (_fn_interp)
-    {
+    switch (_fn_interp) {
         default:
         case FN_INTERP_LINEAR:
             xs = x - x0;
@@ -396,6 +669,74 @@ FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y) {
     return _FNSinglePerlin(_fn_seed, x * _fn_frequency, y * _fn_frequency);
 }
 
+FN_DECIMAL _FNSinglePerlinFractalFBM(FN_DECIMAL x, FN_DECIMAL y) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = _FNSinglePerlin(seed, x, y);
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += _FNSinglePerlin(++seed, x, y) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSinglePerlinFractalBillow(FN_DECIMAL x, FN_DECIMAL y) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = abs(_FNSinglePerlin(seed, x, y)) * 2 - 1;
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum += (abs(_FNSinglePerlin(++seed, x, y)) * 2 - 1) * amp;
+    }
+
+    return sum * _fn_fractalBounding;
+}
+
+FN_DECIMAL _FNSinglePerlinFractalRigidMulti(FN_DECIMAL x, FN_DECIMAL y) {
+    int seed = _fn_seed;
+    FN_DECIMAL sum = 1 - abs(_FNSinglePerlin(seed, x, y));
+    FN_DECIMAL amp = 1;
+
+    for (int i = 1; i < _fn_octaves; i++) {
+        x *= _fn_lacunarity;
+        y *= _fn_lacunarity;
+
+        amp *= _fn_gain;
+        sum -= (1 - abs(_FNSinglePerlin(++seed, x, y))) * amp;
+    }
+
+    return sum;
+}
+
+FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL x, FN_DECIMAL y) {
+    x *= _fn_frequency;
+    y *= _fn_frequency;
+    
+    switch (_fn_fractalType) {
+        case FN_FRACTAL_FBM:
+            return _FNSinglePerlinFractalFBM(x, y);
+        case FN_FRACTAL_BILLOW:
+            return _FNSinglePerlinFractalBillow(x, y);
+        case FN_FRACTAL_RIGIDMULTI:
+            return _FNSinglePerlinFractalRigidMulti(x, y);
+        default:
+            return 0;
+    }
+}
+
+FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL2 pos) {
+    return FNGetPerlinFractal(pos.x, pos.y);
+}
+
 static const FN_DECIMAL F3 = (FN_DECIMAL)(1.0 / 3.0);
 static const FN_DECIMAL G3 = (FN_DECIMAL)(1.0 / 6.0);
 static const FN_DECIMAL G33 = G3 * 3 - 1;
@@ -414,33 +755,20 @@ FN_DECIMAL _FNSingleSimplex(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) 
     int i1, j1, k1;
     int i2, j2, k2;
 
-    if (x0 >= y0)
-    {
-        if (y0 >= z0)
-        {
+    if (x0 >= y0) {
+        if (y0 >= z0) {
             i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 1; k2 = 0;
-        }
-        else if (x0 >= z0)
-        {
+        } else if (x0 >= z0) {
             i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 0; k2 = 1;
-        }
-        else // x0 < z0
-        {
+        } else { // x0 < z0
             i1 = 0; j1 = 0; k1 = 1; i2 = 1; j2 = 0; k2 = 1;
         }
-    }
-    else // x0 < y0
-    {
-        if (y0 < z0)
-        {
+    } else { // x0 < y0
+        if (y0 < z0) {
             i1 = 0; j1 = 0; k1 = 1; i2 = 0; j2 = 1; k2 = 1;
-        }
-        else if (x0 < z0)
-        {
+        } else if (x0 < z0) {
             i1 = 0; j1 = 1; k1 = 0; i2 = 0; j2 = 1; k2 = 1;
-        }
-        else // x0 >= z0
-        {
+        } else { // x0 >= z0
             i1 = 0; j1 = 1; k1 = 0; i2 = 1; j2 = 1; k2 = 0;
         }
     }
@@ -459,32 +787,28 @@ FN_DECIMAL _FNSingleSimplex(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) 
 
     t = (FN_DECIMAL)0.6 - x0 * x0 - y0 * y0 - z0 * z0;
     if (t < 0) n0 = 0;
-    else
-    {
+    else {
         t *= t;
         n0 = t * t * _FNGradCoord3D(seed, i, j, k, x0, y0, z0);
     }
 
     t = (FN_DECIMAL)0.6 - x1 * x1 - y1 * y1 - z1 * z1;
     if (t < 0) n1 = 0;
-    else
-    {
+    else {
         t *= t;
         n1 = t * t * _FNGradCoord3D(seed, i + i1, j + j1, k + k1, x1, y1, z1);
     }
 
     t = (FN_DECIMAL)0.6 - x2 * x2 - y2 * y2 - z2 * z2;
     if (t < 0) n2 = 0;
-    else
-    {
+    else {
         t *= t;
         n2 = t * t * _FNGradCoord3D(seed, i + i2, j + j2, k + k2, x2, y2, z2);
     }
 
     t = (FN_DECIMAL)0.6 - x3 * x3 - y3 * y3 - z3 * z3;
     if (t < 0) n3 = 0;
-    else
-    {
+    else {
         t *= t;
         n3 = t * t * _FNGradCoord3D(seed, i + 1, j + 1, k + 1, x3, y3, z3);
     }
@@ -492,12 +816,12 @@ FN_DECIMAL _FNSingleSimplex(int seed, FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) 
     return 32 * (n0 + n1 + n2 + n3);
 }
 
-FN_DECIMAL FNGetSimplex(FN_DECIMAL3 pos) {
-    return _FNSingleSimplex(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency, pos.z * _fn_frequency);
-}
-
 FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     return _FNSingleSimplex(_fn_seed, x * _fn_frequency, y * _fn_frequency, z * _fn_frequency);
+}
+
+FN_DECIMAL FNGetSimplex(FN_DECIMAL3 pos) {
+    return _FNSingleSimplex(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency, pos.z * _fn_frequency);
 }
 
 static const FN_DECIMAL SQRT3 = (FN_DECIMAL)1.7320508075688772935274463415059;
@@ -517,12 +841,9 @@ FN_DECIMAL _FNSingleSimplex(int seed, FN_DECIMAL x, FN_DECIMAL y) {
     FN_DECIMAL y0 = y - Y0;
 
     int i1, j1;
-    if (x0 > y0)
-    {
+    if (x0 > y0) {
         i1 = 1; j1 = 0;
-    }
-    else
-    {
+    } else {
         i1 = 0; j1 = 1;
     }
 
@@ -535,24 +856,21 @@ FN_DECIMAL _FNSingleSimplex(int seed, FN_DECIMAL x, FN_DECIMAL y) {
 
     t = (FN_DECIMAL)0.5 - x0 * x0 - y0 * y0;
     if (t < 0) n0 = 0;
-    else
-    {
+    else {
          t *= t;
          n0 = t * t * _FNGradCoord2D(seed, i, j, x0, y0);
     }
 
     t = (FN_DECIMAL)0.5 - x1 * x1 - y1 * y1;
     if (t < 0) n1 = 0;
-    else
-    {
+    else {
         t *= t;
         n1 = t * t * _FNGradCoord2D(seed, i + i1, j + j1, x1, y1);
     }
 
     t = (FN_DECIMAL)0.5 - x2 * x2 - y2 * y2;
     if (t < 0) n2 = 0;
-    else
-    {
+    else {
         t *= t;
         n2 = t * t * _FNGradCoord2D(seed, i + 1, j + 1, x2, y2);
     }
@@ -560,29 +878,26 @@ FN_DECIMAL _FNSingleSimplex(int seed, FN_DECIMAL x, FN_DECIMAL y) {
     return 50 * (n0 + n1 + n2);
 }
 
-FN_DECIMAL FNGetSimplex(FN_DECIMAL2 pos) {
-    return _FNSingleSimplex(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency);
-}
-
 FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y) {
     return _FNSingleSimplex(_fn_seed, x * _fn_frequency, y * _fn_frequency);
+}
+
+FN_DECIMAL FNGetSimplex(FN_DECIMAL2 pos) {
+    return _FNSingleSimplex(_fn_seed, pos.x * _fn_frequency, pos.y * _fn_frequency);
 }
 
 // TODO: More noise types
 
 // Public API
-
 void FNSetNoiseType(int type) { _fn_noiseType = type; }
-int FNGetNoiseType() { return _fn_noiseType; }
-
-void FNSetSeed(int seed) { _fn_seed = seed; }
+void FNSetSeed(int seed) { _fn_seed = seed; _FNCalculateFractalBounding(); } // This must be called before any GetNoise calls to ensure the fractal bounding is set.
 int FNGetSeed() { return _fn_seed; }
-
 void FNSetInterp(int interp) { _fn_interp = interp; }
-int FNGetInterp() { return _fn_interp; }
-
 void FNSetFrequency(FN_DECIMAL frequency) { _fn_frequency = frequency; }
-FN_DECIMAL FNGetFrequency() { return _fn_frequency; }
+void FNSetFractalOctaves(int octaves) { _fn_octaves = octaves; _FNCalculateFractalBounding(); }
+void FNSetFractalLacunarity(FN_DECIMAL lacunarity) { _fn_lacunarity = lacunarity; }
+void FNSetFractalGain(FN_DECIMAL gain) { _fn_gain = gain; _FNCalculateFractalBounding(); }
+void FNSetFractalType(int type) { _fn_fractalType = type; }
 
 FN_DECIMAL FNGetNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     x *= _fn_frequency;
@@ -592,10 +907,34 @@ FN_DECIMAL FNGetNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     switch (_fn_noiseType) {
         case FN_NOISE_VALUE:
             return _FNSingleValue(_fn_seed, x, y, z);
+        case FN_NOISE_VALUE_FRACTAL:
+            switch (_fn_fractalType) {
+                case FN_FRACTAL_FBM:
+                    return _FNSingleValueFractalFBM(x, y, z);
+                case FN_FRACTAL_BILLOW:
+                    return _FNSingleValueFractalBillow(x, y, z);
+                case FN_FRACTAL_RIGIDMULTI:
+                    return _FNSingleValueFractalRigidMulti(x, y, z);
+                default:
+                    return 0;
+            }
         case FN_NOISE_PERLIN:
             return _FNSinglePerlin(_fn_seed, x, y, z);
+        case FN_NOISE_PERLIN_FRACTAL:
+            switch (_fn_fractalType) {
+                case FN_FRACTAL_FBM:
+                    return _FNSinglePerlinFractalFBM(x, y, z);
+                case FN_FRACTAL_BILLOW:
+                    return _FNSinglePerlinFractalBillow(x, y, z);
+                case FN_FRACTAL_RIGIDMULTI:
+                    return _FNSinglePerlinFractalRigidMulti(x, y, z);
+                default:
+                    return 0;
+            }
         case FN_NOISE_SIMPLEX:
             return _FNSingleSimplex(_fn_seed, x, y, z);
+        case FN_NOISE_WHITENOISE:
+            return FNGetWhiteNoise(x, y, z);
         default:
             return 0;
     }
@@ -608,10 +947,34 @@ FN_DECIMAL FNGetNoise(FN_DECIMAL x, FN_DECIMAL y) {
     switch (_fn_noiseType) {
         case FN_NOISE_VALUE:
             return _FNSingleValue(_fn_seed, x, y);
+        case FN_NOISE_VALUE_FRACTAL:
+            switch (_fn_fractalType) {
+                case FN_FRACTAL_FBM:
+                    return _FNSingleValueFractalFBM(x, y);
+                case FN_FRACTAL_BILLOW:
+                    return _FNSingleValueFractalBillow(x, y);
+                case FN_FRACTAL_RIGIDMULTI:
+                    return _FNSingleValueFractalRigidMulti(x, y);
+                default:
+                    return 0;
+            }
         case FN_NOISE_PERLIN:
             return _FNSinglePerlin(_fn_seed, x, y);
+        case FN_NOISE_PERLIN_FRACTAL:
+            switch (_fn_fractalType) {
+                case FN_FRACTAL_FBM:
+                    return _FNSinglePerlinFractalFBM(x, y);
+                case FN_FRACTAL_BILLOW:
+                    return _FNSinglePerlinFractalBillow(x, y);
+                case FN_FRACTAL_RIGIDMULTI:
+                    return _FNSinglePerlinFractalRigidMulti(x, y);
+                default:
+                    return 0;
+            }
         case FN_NOISE_SIMPLEX:
             return _FNSingleSimplex(_fn_seed, x, y);
+        case FN_NOISE_WHITENOISE:
+            return FNGetWhiteNoise(x, y);
         default:
             return 0;
     }
