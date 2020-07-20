@@ -21,7 +21,7 @@ Note, this library port is a work in progress, this API reference will evolve ye
 - `FN_NOISE_SIMPLEX`
 - `FN_NOISE_SIMPLEX_FRACTAL` - Not implemented yet
 - `FN_NOISE_CELLULAR` - Not implemented yet
-- `FN_NOISE_WHITENOISE` - Not implemented yet
+- `FN_NOISE_WHITENOISE`
 - `FN_NOISE_CUBIC` - Not implemented yet
 - `FN_NOISE_CUBIC_FRACTAL` - Not implemented yet
 
