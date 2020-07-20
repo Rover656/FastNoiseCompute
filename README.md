@@ -3,9 +3,13 @@ This is a library based on [FastNoise](https://github.com/Auburns/FastNoise) by 
 
 This should also support other compute shader platforms, as long as they use HLSL.
 
+All functions have been verified to be the same (at least, my mesh generator produced the same results using this and FastNoise C#).
+
+Feel free to read [my blog post](http://www.nerdthings.dev/2020/07/20/unity-compute-noise) explaining my motivations to create this (and how this can help you too!).
+
 ## API Reference
 
-Note, this library port is a work in progress, this API reference will evolve yet.
+I will redo this one day, but for now this will be the documentation for this project (hopefully this suffices).
 
 ### Types
 
@@ -21,11 +25,11 @@ Note, this library port is a work in progress, this API reference will evolve ye
 - `FN_NOISE_PERLIN`
 - `FN_NOISE_PERLIN_FRACTAL`
 - `FN_NOISE_SIMPLEX`
-- `FN_NOISE_SIMPLEX_FRACTAL` - Not implemented yet
+- `FN_NOISE_SIMPLEX_FRACTAL`
 - `FN_NOISE_CELLULAR` - Not implemented yet
 - `FN_NOISE_WHITENOISE`
-- `FN_NOISE_CUBIC` - Not implemented yet
-- `FN_NOISE_CUBIC_FRACTAL` - Not implemented yet
+- `FN_NOISE_CUBIC`
+- `FN_NOISE_CUBIC_FRACTAL`
 
 ### Fractal Types
 
@@ -41,8 +45,9 @@ Note, this library port is a work in progress, this API reference will evolve ye
 
 ### Configuration Functions
 
+- `void FNInit()` - You must call this at the start of your shader *if you do not use FNSetSeed*
 - `void FNSetNoiseType(int type)` - Set the type of noise returned by `GetNoise` (default: `FN_NOISE_SIMPLEX`)
-- `void FNSetSeed(int seed)` - Set the seed used by all noise functions (default: `1337`).
+- `void FNSetSeed(int seed)` - Set the seed used by all noise functions (default: `1337`). Must be called before any get seed functions if you are using this.
 - `int FNGetSeed()` - Get the seed used by all noise functions
 - `void FNSetInterp(int interp)` - Set the interpolation method (default: `FN_INTERP_QUINTIC`).
 - `void FNSetFrequency(FN_DECIMAL frequency)` - Set the noise frequency (default: `0.001`).
@@ -84,12 +89,27 @@ Note, this library port is a work in progress, this API reference will evolve ye
 - `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL3 pos)`
 - `FN_DECIMAL FNGetPerlin(FN_DECIMAL x, FN_DECIMAL y)`
 - `FN_DECIMAL FNGetPerlin(FN_DECIMAL2 pos)`
-- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL x, FN_DECIMAL y)`
-- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL2 pos)`
+- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL x, FN_DECIMAL y)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetPerlinFractal(FN_DECIMAL2 pos)` - Uses the current fractal type.
 
 ### Simplex Noise Functions
 
 - `FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
 - `FN_DECIMAL FNGetSimplex(FN_DECIMAL3 pos)`
+- `FN_DECIMAL FNGetSimplexFractal(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetSimplexFractal(FN_DECIMAL3 pos)` - Uses the current fractal type.
 - `FN_DECIMAL FNGetSimplex(FN_DECIMAL x, FN_DECIMAL y)`
 - `FN_DECIMAL FNGetSimplex(FN_DECIMAL2 pos)`
+- `FN_DECIMAL FNGetSimplexFractal(FN_DECIMAL x, FN_DECIMAL y)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetSimplexFractal(FN_DECIMAL2 pos)` - Uses the current fractal type.
+
+### Cubic Noise Functions
+
+- `FN_DECIMAL FNGetCubic(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)`
+- `FN_DECIMAL FNGetCubic(FN_DECIMAL3 pos)`
+- `FN_DECIMAL FNGetCubicFractal(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetCubicFractal(FN_DECIMAL3 pos)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetCubic(FN_DECIMAL x, FN_DECIMAL y)`
+- `FN_DECIMAL FNGetCubic(FN_DECIMAL2 pos)`
+- `FN_DECIMAL FNGetCubicFractal(FN_DECIMAL x, FN_DECIMAL y)` - Uses the current fractal type.
+- `FN_DECIMAL FNGetCubicFractal(FN_DECIMAL2 pos)` - Uses the current fractal type.
