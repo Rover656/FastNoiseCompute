@@ -581,8 +581,8 @@ int FNGetSeed() { return _fn_seed; }
 void FNSetInterp(int interp) { _fn_interp = interp; }
 int FNGetInterp() { return _fn_interp; }
 
-void FNSetFrequency(float frequency) { _fn_frequency = frequency; }
-float FNGetFrequency() { return _fn_frequency; }
+void FNSetFrequency(FN_DECIMAL frequency) { _fn_frequency = frequency; }
+FN_DECIMAL FNGetFrequency() { return _fn_frequency; }
 
 FN_DECIMAL FNGetNoise(FN_DECIMAL x, FN_DECIMAL y, FN_DECIMAL z) {
     x *= _fn_frequency;
