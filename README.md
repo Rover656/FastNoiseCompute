@@ -1,5 +1,5 @@
 # FastNoiseCompute
-This is a library based on [FastNoise](https://github.com/Auburns/FastNoise) by Auburns implemented in Unity Compute shaders. I'm slowly adding the different noise types.
+This is a library a port of [FastNoise](https://github.com/Auburns/FastNoise) by Auburns implemented in Unity Compute shaders. I'm slowly adding the different noise types.
 
 This should also support other compute shader platforms, as long as they use HLSL.
 
